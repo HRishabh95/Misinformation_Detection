@@ -1,14 +1,7 @@
 import pandas as pd
 import torch
-from sentence_transformers import SentenceTransformer
 from tqdm import tqdm
-
 from check_sentence import check_sentence
-#model = SentenceTransformer('pritamdeka/S-Biomed-Roberta-snli-multinli-stsb')
-model = SentenceTransformer('GPL/trec-covid-v2-msmarco-distilbert-gpl')
-if torch.cuda.is_available():
-    model = model.to(torch.device("cuda"))
-print(model.device)
 
 dataset='/home/ubuntu/rupadhyay/dataset/recovery-news-data.csv'
 
