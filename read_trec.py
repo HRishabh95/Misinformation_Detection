@@ -65,6 +65,6 @@ def split_into_sentences(text):
     return sentences
 
 
-dataset['sentences'] = dataset.apply(lambda x: split_into_sentences(x['text']), axis=1)
+dataset['h_sentences'] = dataset.apply(lambda x: split_into_sentences(x['text']), axis=1)
 
 dataset.to_csv('./data/train_qid_sen.csv',sep=';',index=None) #h_embeddings
