@@ -12,6 +12,7 @@ if torch.cuda.is_available():
     model = model.to(torch.device("cuda"))
 print(model.device)
 import re
+clean=False
 
 alphabets = "([A-Za-z])"
 prefixes = "(Mr|St|Mrs|Ms|Dr)[.]"
@@ -76,9 +77,9 @@ def clean_en_text(text):
     return text.strip().lower()
 
 
-if not os.path.isfile('./all_journal_sentences.csv'):
-    wic_data = '/tmp/pycharm_project_631/all_journal_content.csv'
-    df_docs = pd.read_csv(wic_data, sep='\t', index_col=0, lineterminator='\n').dropna()
+if not os.path.isfile('./all_journal_sentences.v2.csv'):
+    wic_data = '/tmp/pycharm_project_631/all_journal_content.v2.csv'
+    df_docs = pd.read_csv(wic_data, sep='\t', lineterminator='\n').dropna(subset=['contents'])
     # df_docs['contents'] = df_docs.apply(lambda x: clean_en_text(x['contents']), axis=1)
     df_docs.columns = ['title', 'text', 'citation', 'views', 'j_type', 'docno']
 
@@ -93,12 +94,17 @@ if not os.path.isfile('./all_journal_sentences.csv'):
                 sen_index.append([doc_ids, sen_ids, sen])
 
     sen_index_df = pd.DataFrame(sen_index, columns=['docno', 'sid', 'text'])
-    sen_index_df.to_csv('./all_journal_sentences.csv', index=None, sep=';')
+    sen_index_df.to_csv('./all_journal_sentences.v2.csv', index=None, sep=';')
 else:
-    sen_index_df = pd.read_csv("./all_journal_sentences.csv", sep=';', engine='python')
+    sen_index_df = pd.read_csv("./all_journal_sentences.v2.csv", sep=';', engine='python')
 
 sen_index_df.dropna(inplace=True)
-embeddings = model.encode(sen_index_df['text'].to_list(), show_progress_bar=True)
+if clean:
+    index_filename = './journal_index_clean.v2.faiss'
+    embeddings = model.encode(sen_index_df['text'].apply(clean_en_text).to_list(), show_progress_bar=True)
+else:
+    index_filename = './journal_index.v2.faiss'
+    embeddings = model.encode(sen_index_df['text'].to_list(), show_progress_bar=True)
 
 import numpy as np
 import faiss
@@ -107,5 +113,4 @@ embeddings = np.array([embedding for embedding in embeddings]).astype("float32")
 index = faiss.IndexFlatL2(embeddings.shape[1])
 index = faiss.IndexIDMap(index)
 index.add_with_ids(embeddings, sen_index_df.index.values)
-index_filename = './journal_index.faiss'
 faiss.write_index(index, index_filename)

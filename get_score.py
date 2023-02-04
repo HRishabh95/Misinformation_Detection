@@ -1,7 +1,8 @@
 import pandas as pd
 import ast
-
-scores=pd.read_csv('./recovery-news-data-cleaned-facts.csv',sep=';')
+target_file='/tmp/pycharm_project_631/docs/gen_docs_func_all_top_sen_ner_manual_covid_bert-embed_5-facts.csv'
+# target_file='./recovery-news-data-cleaned-facts.csv'
+scores=pd.read_csv(target_file,sep=';')
 
 final_score=[]
 for ii,score in scores.iterrows():
@@ -26,3 +27,11 @@ for ii,score in scores.iterrows():
 
 scores['final_score']=final_score
 scores.to_csv('./recovery-news-data-cleaned-facts-passage-score.csv', index=None, sep=';')
+
+# for ii, i in enumerate(final_score):
+#     cred = 0
+#     for jj,j in enumerate(i):
+#         if jj < int(len(i) * 0.3):
+#             if j == 5:
+#                 cred += 1
+#     percent.append([cred / int(len(final_score[ii]) * 0.3), int(len(final_score[ii]))])
