@@ -1,8 +1,10 @@
 import os.path
-
+import nltk
 import pandas as pd
 import torch
 from sentence_transformers import SentenceTransformer
+from nltk import tokenize
+tokenizer = nltk.data.load('tokenizers/punkt/english.pickle')
 
 # model = SentenceTransformer('pritamdeka/S-Biomed-Roberta-snli-multinli-stsb')
 model = SentenceTransformer('GPL/trec-covid-v2-msmarco-distilbert-gpl')
@@ -12,7 +14,7 @@ if torch.cuda.is_available():
     model = model.to(torch.device("cuda"))
 print(model.device)
 import re
-clean=False
+clean=True
 
 alphabets = "([A-Za-z])"
 prefixes = "(Mr|St|Mrs|Ms|Dr)[.]"
@@ -77,33 +79,42 @@ def clean_en_text(text):
     return text.strip().lower()
 
 
-if not os.path.isfile('./all_journal_sentences.v2.csv'):
+
+if not os.path.isfile('./all_journal_sentences.v2.6.csv'):
     wic_data = '/tmp/pycharm_project_631/all_journal_content.v2.csv'
+    # wic_data= '/tmp/pycharm_project_631/all_journal_content_cite.csv'
     df_docs = pd.read_csv(wic_data, sep='\t', lineterminator='\n').dropna(subset=['contents'])
-    # df_docs['contents'] = df_docs.apply(lambda x: clean_en_text(x['contents']), axis=1)
+    # if clean:
+    #     df_docs['contents'] = df_docs.apply(lambda x: clean_en_text(x['contents']), axis=1)
     df_docs.columns = ['title', 'text', 'citation', 'views', 'j_type', 'docno']
 
-    df_docs['sentences'] = df_docs.apply(lambda x: split_into_sentences(x['text']), axis=1)
+    df_docs['sentences'] = df_docs.apply(lambda x: tokenize.sent_tokenize(x['text']), axis=1)
 
     sen_index = []
+    sens=[]
     for ii, df_rows in df_docs.iterrows():
         doc_ids = df_rows['docno']
         for sid, sen in enumerate(df_rows['sentences']):
-            if len(sen.split()) > 4:
+            if len(sen.split()) > 6:
+                # if sen not in sens:
+                #     sens.append(sen)
                 sen_ids = f'''{doc_ids}_s{sid}'''
                 sen_index.append([doc_ids, sen_ids, sen])
 
     sen_index_df = pd.DataFrame(sen_index, columns=['docno', 'sid', 'text'])
-    sen_index_df.to_csv('./all_journal_sentences.v2.csv', index=None, sep=';')
+    sen_index_df.drop_duplicates(subset=['text'],inplace=True)
+    sen_index_df.to_csv('./all_journal_sentences.v2.6.csv', index=None, sep=';')
 else:
-    sen_index_df = pd.read_csv("./all_journal_sentences.v2.csv", sep=';', engine='python')
+    sen_index_df = pd.read_csv("./all_journal_sentences.v2.6.csv", sep=';', engine='python')
+
+#df_docs.columns=['title', 'contents', 'citation', 'views', 'j_type', 'docno']
 
 sen_index_df.dropna(inplace=True)
 if clean:
-    index_filename = './journal_index_clean.v2.faiss'
+    index_filename = './journal_index_clean.v2.6.faiss'
     embeddings = model.encode(sen_index_df['text'].apply(clean_en_text).to_list(), show_progress_bar=True)
 else:
-    index_filename = './journal_index.v2.faiss'
+    index_filename = './journal_index.v2.6.faiss'
     embeddings = model.encode(sen_index_df['text'].to_list(), show_progress_bar=True)
 
 import numpy as np
@@ -112,5 +123,6 @@ import faiss
 embeddings = np.array([embedding for embedding in embeddings]).astype("float32")
 index = faiss.IndexFlatL2(embeddings.shape[1])
 index = faiss.IndexIDMap(index)
+faiss.normalize_L2(embeddings)
 index.add_with_ids(embeddings, sen_index_df.index.values)
 faiss.write_index(index, index_filename)
